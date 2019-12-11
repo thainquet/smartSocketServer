@@ -22,36 +22,46 @@ app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json());
 
 app.set('PORT', process.env.PORT || 7778);
-app.get('/getInfor', async (req, res) => {
-    const client = await mqtt.connect('mqtt://tailor.cloudmqtt.com', options)
-    let data = {
-        "nhietdo": "",
-        "doam": "",
-        "trangthai" : ""
+
+let data = {
+    "nhietdo": "",
+    "doam": "",
+    "trangthai": ""
+}
+
+const client = mqtt.connect('mqtt://tailor.cloudmqtt.com', options)
+client.on('connect', () => {
+    console.log('connected');
+    client.subscribe('nhietdo');
+    client.subscribe('doam');
+    client.subscribe('stt');
+});
+client.on('message', (topic, message) => {
+    message = JSON.parse(message)
+    if (topic == 'nhietdo') {
+        data.nhietdo = message
     }
-    await client.on('connect', () => {
-        console.log('connected');
-        client.subscribe('nhietdo', function () {
-            client.on('message', function (topic, msg, pkt) {
-                let json = JSON.parse(msg);
-                data.nhietdo = json.toString()
-            });
-        });
-        client.subscribe('doam', function () {
-            client.on('message', function (topic, msg, pkt) {
-                let json = JSON.parse(msg);
-                data.doam = json.toString()
-            });
-        });
-        client.subscribe('status', function () {
-            client.on('message', function (topic, msg, pkt) {
-                let json = JSON.parse(msg);
-                data.trangthai = json.toString()
-            });
-            console.log(data)
-        });
-        res.send(data)
-    });
+    if (topic == 'doam') {
+        data.doam = message
+    }
+    if (topic == 'stt') {
+        data.trangthai = message
+    }
+    console.log(data)
+})
+
+app.get('/getInfor', (req, res) => {
+    res.send(data)    
+})
+
+app.get('/turnON', (req,res) => {
+    client.publish("cmd", "1");
+    res.end("success")
+})
+
+app.get('/turnOFF', (req,res) => {
+    client.publish("cmd", "0");    
+    res.end("success")
 })
 
 
